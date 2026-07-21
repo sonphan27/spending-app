@@ -20,14 +20,6 @@ class MainActivity : AppCompatActivity() {
         val db = AppDatabase.getDatabase(this)
         val dao = db.spendingDao()
 
-        val pickMedia = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-            if (uri != null) {
-                OcrScanner.processImage(this, uri) { parsedData ->
-                    formComponent.fillFromOcr(parsedData)
-                }
-            }
-        }
-
         // Main Container
         val mainContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -36,10 +28,9 @@ class MainActivity : AppCompatActivity() {
 
         val contentContainer = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
-            setPadding(0, 64, 0, 0)
         }
 
-        // Modern Navigation Bar
+        // Navigation Bar
         val navLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(24, 20, 24, 48)
@@ -61,18 +52,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val btnForm = createNavBtn("New Spending")
+        val btnForm = createNavBtn("Form")
         val btnSearch = createNavBtn("Items")
         val btnHistory = createNavBtn("History")
-        val btnScan = createNavBtn("Upload bill").apply {
-            setTextColor(UITheme.COLOR_PRIMARY)
-            setOnClickListener { pickMedia.launch("image/*") }
-        }
-
-        navLayout.addView(btnForm)
-        navLayout.addView(btnScan)
-        navLayout.addView(btnHistory)
-        navLayout.addView(btnSearch)
 
         // Inject Views
         formComponent = FormComponent(this, dao, lifecycleScope)
@@ -92,15 +74,39 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        highlightTab(btnForm) // Default active tab
-
-        // Toggle Logic
-        btnForm.setOnClickListener {
+        // Navigation Switcher Function
+        fun switchToFormTab() {
             highlightTab(btnForm)
             formComponent.view.visibility = View.VISIBLE
             historyView.visibility = View.GONE
             searchView.visibility = View.GONE
         }
+
+        // --- Photo Picker Handler ---
+        val pickMedia = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri != null) {
+                OcrScanner.processImage(this, uri) { parsedData ->
+                    // Auto-navigate to Form tab & fill parsed data!
+                    switchToFormTab()
+                    formComponent.fillFromOcr(parsedData)
+                }
+            }
+        }
+
+        val btnScan = createNavBtn("Scan").apply {
+            setTextColor(UITheme.COLOR_PRIMARY)
+            setOnClickListener { pickMedia.launch("image/*") }
+        }
+
+        navLayout.addView(btnForm)
+        navLayout.addView(btnSearch)
+        navLayout.addView(btnHistory)
+        navLayout.addView(btnScan)
+
+        highlightTab(btnForm) // Default active tab
+
+        // Toggle Listeners
+        btnForm.setOnClickListener { switchToFormTab() }
         btnHistory.setOnClickListener {
             highlightTab(btnHistory)
             formComponent.view.visibility = View.GONE
