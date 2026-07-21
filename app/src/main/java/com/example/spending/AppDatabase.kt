@@ -64,6 +64,16 @@ interface SpendingDao {
 
     @Query("SELECT * FROM spending_item WHERE spendingId = :spendingId")
     suspend fun getItemsForSpending(spendingId: Int): List<SpendingItem>
+
+    // --- NEW: Distinct queries for dynamic autocomplete options ---
+    @Query("SELECT DISTINCT merchantName FROM spending WHERE merchantName IS NOT NULL AND merchantName != '' ORDER BY merchantName ASC")
+    suspend fun getDistinctMerchants(): List<String>
+
+    @Query("SELECT DISTINCT category FROM spending WHERE category IS NOT NULL AND category != '' ORDER BY category ASC")
+    suspend fun getDistinctCategories(): List<String>
+
+    @Query("SELECT DISTINCT paymentSource FROM spending WHERE paymentSource IS NOT NULL AND paymentSource != '' ORDER BY paymentSource ASC")
+    suspend fun getDistinctPaymentSources(): List<String>
 }
 
 // --- 3. DATABASE SETUP ---
