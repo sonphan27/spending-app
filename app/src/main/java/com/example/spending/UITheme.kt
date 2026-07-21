@@ -111,4 +111,38 @@ object UITheme {
             layoutParams = params
         }
     }
+
+    // --- Styled AutoComplete Text View ---
+    // --- Styled AutoComplete Text View (With Tap-to-Open Dropdown) ---
+    fun createStyledAutoCompleteTextView(context: Context, hintText: String): AutoCompleteTextView {
+        return AutoCompleteTextView(context).apply {
+            hint = hintText
+            setHintTextColor(COLOR_TEXT_MUTED)
+            setTextColor(COLOR_TEXT_DARK)
+            textSize = 15f
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            background = createRoundedDrawable(COLOR_CARD_BG, 12f, COLOR_BORDER, 1)
+            setPadding(32, 28, 32, 28)
+            threshold = 1 // Shows suggestions when typing
+
+            // 1. Show all options immediately when the user taps into/focuses the field
+            setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) {
+                    postDelayed({ showDropDown() }, 100)
+                }
+            }
+
+            // 2. Show options again if the user taps an already-focused field
+            setOnClickListener {
+                showDropDown()
+            }
+
+            val params = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            params.setMargins(0, 8, 0, 16)
+            layoutParams = params
+        }
+    }
 }
