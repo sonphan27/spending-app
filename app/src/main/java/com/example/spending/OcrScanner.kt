@@ -23,6 +23,7 @@ object OcrScanner {
                     val parsedData = ReceiptParser.parse(visionText.text)
 
                     // Pass the data back to MainActivity instead of showing a popup
+                    Log.d("OCR_PARSED", "\n=== START ===\n${parsedData}\n=== END ===")
                     onSuccess(parsedData)
                 }
                 .addOnFailureListener { e ->
