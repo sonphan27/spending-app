@@ -17,48 +17,64 @@ object HistoryView {
         val historyScrollView = ScrollView(context)
         val historyLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 64)
+            setPadding(32, 24, 32, 48)
         }
         historyScrollView.addView(historyLayout)
 
-        val dateFormat = SimpleDateFormat("MMM dd, yyyy - HH:mm", Locale.getDefault())
+        val dateFormat = SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault())
 
         scope.launch(Dispatchers.IO) {
             dao.getAllSpendings().collect { spendings ->
                 withContext(Dispatchers.Main) {
                     historyLayout.removeAllViews()
 
+                    historyLayout.addView(UITheme.createHeaderTextView(context, "Spending History"))
+
                     if (spendings.isEmpty()) {
-                        historyLayout.addView(TextView(context).apply { text = "No records yet." })
+                        historyLayout.addView(TextView(context).apply {
+                            text = "No recorded spendings yet."
+                            setTextColor(UITheme.COLOR_TEXT_MUTED)
+                        })
                     } else {
                         for (spending in spendings) {
-                            val recordCard = LinearLayout(context).apply {
-                                orientation = LinearLayout.VERTICAL
-                                setPadding(32, 32, 32, 32)
-                                setBackgroundColor(Color.parseColor("#F0F0F0"))
+                            val recordCard = UITheme.createCardLayout(context).apply {
                                 isClickable = true
                                 isFocusable = true
-
-                                // Click to view details
                                 setOnClickListener {
                                     showDetailsDialog(context, spending, dao, scope)
                                 }
                             }
 
-                            val topRow = TextView(context).apply {
-                                text = "${spending.merchantName} — ${spending.totalAmount} ${spending.currency}"
-                                textSize = 18f
-                                setTextColor(Color.BLACK)
+                            val topRow = LinearLayout(context).apply {
+                                orientation = LinearLayout.HORIZONTAL
                             }
+
+                            val merchantText = TextView(context).apply {
+                                text = spending.merchantName
+                                textSize = 16f
+                                setTextColor(UITheme.COLOR_TEXT_DARK)
+                                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                            }
+
+                            val amountText = TextView(context).apply {
+                                text = "${spending.totalAmount} ${spending.currency}"
+                                textSize = 16f
+                                setTextColor(UITheme.COLOR_PRIMARY)
+                            }
+
+                            topRow.addView(merchantText)
+                            topRow.addView(amountText)
+
                             val bottomRow = TextView(context).apply {
-                                text = "${spending.category} | ${spending.paymentSource}\n${dateFormat.format(Date(spending.dateTime))}"
-                                setTextColor(Color.DKGRAY)
+                                text = "${spending.category} • ${spending.paymentSource}\n${dateFormat.format(Date(spending.dateTime))}"
+                                textSize = 12f
+                                setTextColor(UITheme.COLOR_TEXT_MUTED)
+                                setPadding(0, 12, 0, 0)
                             }
 
                             recordCard.addView(topRow)
                             recordCard.addView(bottomRow)
                             historyLayout.addView(recordCard)
-                            historyLayout.addView(Space(context).apply { minimumHeight = 24 })
                         }
                     }
                 }

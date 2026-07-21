@@ -1,6 +1,7 @@
 package com.example.spending
 
 import android.content.Context
+import android.graphics.Color
 import android.text.InputType
 import android.view.View
 import android.widget.*
@@ -13,7 +14,7 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
 
     val view: ScrollView = ScrollView(context)
 
-    // Data structure to keep track of the dynamic UI input rows
+    // Tracks dynamic UI input rows for items
     private class ItemInputRow(
         val nameInput: EditText,
         val priceInput: EditText,
@@ -22,110 +23,172 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
 
     private val dynamicItemRows = mutableListOf<ItemInputRow>()
 
-    private val merchantInput = EditText(context).apply { hint = "Merchant Name" }
-    private val amountInput = EditText(context).apply {
-        hint = "Total Amount"
-        inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-    }
-    private val noteInput = EditText(context).apply { hint = "Note (Optional)" }
+    // Inputs using UITheme styling
+    private val merchantInput = UITheme.createStyledEditText(context, "Merchant Name (e.g., West Zone)", InputType.TYPE_CLASS_TEXT)
+    private val amountInput = UITheme.createStyledEditText(context, "Total Amount (e.g., 40.80)", InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL)
+    private val noteInput = UITheme.createStyledEditText(context, "Note (Optional)", InputType.TYPE_CLASS_TEXT)
 
     private val currencies = arrayOf("AED", "USD", "VND")
-    private val currencySpinner = Spinner(context).apply { adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item, currencies) }
+    private val currencySpinner = Spinner(context).apply {
+        adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item, currencies)
+    }
 
     private val categories = arrayOf("Groceries", "Dining", "Transport", "Bills", "Entertainment", "Other")
-    private val categorySpinner = Spinner(context).apply { adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item, categories) }
-
-    private val sources = arrayOf("Credit Card", "Cash", "Google Pay", "Bank Transfer")
-    private val sourceSpinner = Spinner(context).apply { adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item, sources) }
-
-    // Dynamic container where scanned receipt item rows will be added
-    private val itemsSectionHeader = TextView(context).apply {
-        text = "Itemized Products"
-        textSize = 18f
-        setPadding(0, 32, 0, 16)
-        visibility = View.GONE // Hidden until OCR scans items
+    private val categorySpinner = Spinner(context).apply {
+        adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item, categories)
     }
+
+    private val sources = arrayOf("Credit Card", "Debit Card", "Cash", "Google Pay", "Bank Transfer")
+    private val sourceSpinner = Spinner(context).apply {
+        adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item, sources)
+    }
+
+    // Dynamic Items Container
+    private val itemsHeader = UITheme.createLabelTextView(context, "ITEMIZED PRODUCTS")
     private val itemsContainer = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
+    }
+
+    private val addItemButton = Button(context).apply {
+        text = "+ Add Item"
+        textSize = 13f
+        isAllCaps = false
+        setTextColor(UITheme.COLOR_PRIMARY)
+        background = UITheme.createRoundedDrawable(Color.TRANSPARENT, 8f, UITheme.COLOR_PRIMARY, 1)
+        setPadding(24, 16, 24, 16)
+        setOnClickListener { addItemRow("", "") }
     }
 
     init {
         val formLayout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 64)
+            setPadding(32, 24, 32, 64)
         }
 
-        val saveButton = Button(context).apply {
-            text = "Save Record"
-            setPadding(0, 32, 0, 32)
-            setOnClickListener { saveToDatabase() }
-        }
+        formLayout.addView(UITheme.createHeaderTextView(context, "New Spending Record"))
 
+        // Merchant & Amount
+        formLayout.addView(UITheme.createLabelTextView(context, "MERCHANT NAME"))
         formLayout.addView(merchantInput)
-        formLayout.addView(amountInput)
-        formLayout.addView(TextView(context).apply { text = "Currency"; setPadding(0, 24, 0, 0) })
-        formLayout.addView(currencySpinner)
-        formLayout.addView(TextView(context).apply { text = "Category"; setPadding(0, 24, 0, 0) })
-        formLayout.addView(categorySpinner)
-        formLayout.addView(TextView(context).apply { text = "Paid From"; setPadding(0, 24, 0, 0) })
-        formLayout.addView(sourceSpinner)
+
+        formLayout.addView(UITheme.createLabelTextView(context, "TOTAL AMOUNT & CURRENCY"))
+        val amountRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        val spinnerCard = FrameLayout(context).apply {
+            background = UITheme.createRoundedDrawable(UITheme.COLOR_CARD_BG, 12f, UITheme.COLOR_BORDER, 1)
+            setPadding(16, 12, 16, 12)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(16, 8, 0, 16) }
+            addView(currencySpinner)
+        }
+        amountRow.addView(amountInput, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        amountRow.addView(spinnerCard)
+        formLayout.addView(amountRow)
+
+        // Category & Payment Source Row
+        val metaRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+
+        val categoryCard = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(0, 0, 8, 0) }
+            addView(UITheme.createLabelTextView(context, "CATEGORY"))
+            val frame = FrameLayout(context).apply {
+                background = UITheme.createRoundedDrawable(UITheme.COLOR_CARD_BG, 12f, UITheme.COLOR_BORDER, 1)
+                setPadding(16, 12, 16, 12)
+                addView(categorySpinner)
+            }
+            addView(frame)
+        }
+
+        val sourceCard = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(8, 0, 0, 0) }
+            addView(UITheme.createLabelTextView(context, "PAID FROM"))
+            val frame = FrameLayout(context).apply {
+                background = UITheme.createRoundedDrawable(UITheme.COLOR_CARD_BG, 12f, UITheme.COLOR_BORDER, 1)
+                setPadding(16, 12, 16, 12)
+                addView(sourceSpinner)
+            }
+            addView(frame)
+        }
+
+        metaRow.addView(categoryCard)
+        metaRow.addView(sourceCard)
+        formLayout.addView(metaRow)
+
+        // Note Input
+        formLayout.addView(UITheme.createLabelTextView(context, "NOTE"))
         formLayout.addView(noteInput)
 
-        // Inject the dynamic items section right into the form
-        formLayout.addView(itemsSectionHeader)
+        // Itemized Products Section
+        val itemHeaderRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 24, 0, 8)
+            addView(itemsHeader, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            addView(addItemButton)
+        }
+        formLayout.addView(itemHeaderRow)
         formLayout.addView(itemsContainer)
 
-        formLayout.addView(Space(context).apply { minimumHeight = 64 })
+        // Save Button
+        val saveButton = UITheme.createPrimaryButton(context, "Save Record")
+        saveButton.setOnClickListener { saveToDatabase() }
         formLayout.addView(saveButton)
+
         view.addView(formLayout)
     }
 
-    // --- Dynamic UI Generator for Scanned Items ---
+    // --- Dynamic UI Generator for Scanned / Added Items ---
     fun fillFromOcr(data: ReceiptParser.ParsedData) {
         merchantInput.setText(data.merchantName)
-        amountInput.setText(data.totalAmount.toString())
+        amountInput.setText(if (data.totalAmount > 0f) data.totalAmount.toString() else "")
         noteInput.setText("Scanned via OCR")
 
-        // Clear previous item rows if re-scanning
         itemsContainer.removeAllViews()
         dynamicItemRows.clear()
 
-        if (data.items.isNotEmpty()) {
-            itemsSectionHeader.visibility = View.VISIBLE
-
-            for (item in data.items) {
-                addItemRow(item.name, item.price.toString())
-            }
-        } else {
-            itemsSectionHeader.visibility = View.GONE
+        for (item in data.items) {
+            addItemRow(item.name, item.price.toString())
         }
     }
 
-    // Helper method to dynamically create an editable Item + Price row
+    // Helper to dynamically add a clean editable Item row
     private fun addItemRow(initialName: String, initialPrice: String) {
-        val rowLayout = LinearLayout(context).apply {
+        val rowCard = UITheme.createCardLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(0, 8, 0, 8)
+            setPadding(16, 12, 16, 12)
         }
 
-        val nameField = EditText(context).apply {
-            hint = "Item Name"
+        val nameField = UITheme.createStyledEditText(context, "Item Name", InputType.TYPE_CLASS_TEXT).apply {
             setText(initialName)
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f).apply { setMargins(0, 0, 8, 0) }
         }
 
-        val priceField = EditText(context).apply {
-            hint = "Price"
+        val priceField = UITheme.createStyledEditText(context, "Price", InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL).apply {
             setText(initialPrice)
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(0, 0, 8, 0) }
         }
 
-        rowLayout.addView(nameField)
-        rowLayout.addView(priceField)
+        val rowObj = ItemInputRow(nameField, priceField, rowCard)
 
-        itemsContainer.addView(rowLayout)
-        dynamicItemRows.add(ItemInputRow(nameField, priceField, rowLayout))
+        val removeBtn = Button(context).apply {
+            text = "✕"
+            setTextColor(UITheme.COLOR_DANGER)
+            textSize = 14f
+            background = UITheme.createRoundedDrawable(Color.TRANSPARENT, 8f)
+            setOnClickListener {
+                itemsContainer.removeView(rowCard)
+                dynamicItemRows.remove(rowObj)
+            }
+        }
+
+        rowCard.addView(nameField)
+        rowCard.addView(priceField)
+        rowCard.addView(removeBtn)
+
+        itemsContainer.addView(rowCard)
+        dynamicItemRows.add(rowObj)
     }
 
     private fun saveToDatabase() {
@@ -133,12 +196,11 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
         val merchantText = merchantInput.text.toString()
 
         if (amountText.isEmpty() || merchantText.isEmpty()) {
-            Toast.makeText(context, "Missing Merchant or Amount", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Please enter Merchant and Total Amount", Toast.LENGTH_SHORT).show()
             return
         }
 
         scope.launch(Dispatchers.IO) {
-            // 1. Insert parent spending record
             val newSpending = Spending(
                 merchantName = merchantText,
                 category = categorySpinner.selectedItem.toString(),
@@ -150,7 +212,6 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
             )
             val insertedSpendingId = dao.insertSpending(newSpending)
 
-            // 2. Read values directly from the user's updated input fields!
             val itemsToSave = mutableListOf<SpendingItem>()
             for (row in dynamicItemRows) {
                 val name = row.nameInput.text.toString().trim()
@@ -167,19 +228,16 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
                 }
             }
 
-            // 3. Save all items linked to the inserted spending ID
             if (itemsToSave.isNotEmpty()) {
                 dao.insertSpendingItems(itemsToSave)
             }
 
             withContext(Dispatchers.Main) {
-                // Reset form
                 merchantInput.text.clear()
                 amountInput.text.clear()
                 noteInput.text.clear()
                 itemsContainer.removeAllViews()
                 dynamicItemRows.clear()
-                itemsSectionHeader.visibility = View.GONE
 
                 Toast.makeText(context, "Saved Record & ${itemsToSave.size} Items!", Toast.LENGTH_SHORT).show()
             }
