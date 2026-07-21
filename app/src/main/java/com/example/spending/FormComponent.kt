@@ -23,15 +23,15 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
 
     // Default Fallback Suggestions
     private val defaultCategories = listOf("Groceries", "Dining", "Transport", "Bills", "Entertainment", "Other")
-    private val defaultSources = listOf("Credit Card", "Cash", "Google Pay", "Bank Transfer")
+    private val defaultSources = listOf("Credit Card", "Debit Card", "Cash", "Google Pay", "Bank Transfer")
     private val defaultMerchants = listOf("West Zone Supermarket", "Carrefour", "Lulu Hypermarket")
 
     // Autocomplete Fields
-    private val merchantInput = UITheme.createStyledAutoCompleteTextView(context, "Merchant Name (e.g., West Zone)")
-    private val categoryInput = UITheme.createStyledAutoCompleteTextView(context, "Category (e.g., Groceries)")
-    private val sourceInput = UITheme.createStyledAutoCompleteTextView(context, "Paid From (e.g., Credit Card)")
+    private val merchantInput = UITheme.createStyledAutoCompleteTextView(context, "Place Name")
+    private val categoryInput = UITheme.createStyledAutoCompleteTextView(context, "e.g., Groceries")
+    private val sourceInput = UITheme.createStyledAutoCompleteTextView(context, "e.g., Credit Card")
 
-    private val amountInput = UITheme.createStyledEditText(context, "Total Amount (e.g., 40.80)", InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL)
+    private val amountInput = UITheme.createStyledEditText(context, "Total Amount", InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL)
     private val noteInput = UITheme.createStyledEditText(context, "Note (Optional)", InputType.TYPE_CLASS_TEXT)
 
     private val currencies = arrayOf("AED", "USD", "VND")
@@ -74,8 +74,8 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
             setPadding(16, 12, 16, 12)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(16, 8, 0, 16) }
+                104
+            ).apply { setMargins(16, 0, 0, 0) }
             addView(currencySpinner)
         }
         amountRow.addView(amountInput, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
