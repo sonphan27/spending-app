@@ -38,6 +38,26 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, 140, 0, 0) // Added padding to avoid status bar overlap
         }
 
+        // --- App Logo Header ---
+        val headerLogoLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(48, 16, 48, 16)
+            gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+
+        val logoIcon = android.widget.TextView(this).apply {
+            text = "💸" // You can change this emoji to 🧾 or 🛒
+            textSize = 28f
+            setPadding(0, 0, 16, 0)
+        }
+
+        val logoText = android.widget.TextView(this).apply {
+            text = "SpendTracker" // Your app name here
+            textSize = 24f
+            setTextColor(UITheme.COLOR_PRIMARY)
+            paint.isFakeBoldText = true
+        }
+
         val contentContainer = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
         }
