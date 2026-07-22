@@ -67,14 +67,17 @@ class MainActivity : AppCompatActivity() {
         val btnForm = createNavBtn("Form")
         val btnSearch = createNavBtn("Items")
         val btnHistory = createNavBtn("History")
+        val btnSettings = createNavBtn("Settings") // ADDED THIS
+
 
         // Inject Views
         formComponent = FormComponent(this, dao, lifecycleScope)
         val historyView = HistoryView.create(this, dao, lifecycleScope).apply { visibility = View.GONE }
         val searchView = ItemSearchView.create(this, dao, lifecycleScope).apply { visibility = View.GONE }
+        val settingsView = SettingsView.create(this).apply { visibility = View.GONE } // ADDED THIS
 
         fun highlightTab(selectedBtn: Button) {
-            val buttons = listOf(btnForm, btnSearch, btnHistory)
+            val buttons = listOf(btnForm, btnSearch, btnHistory, btnSettings)
             for (b in buttons) {
                 if (b == selectedBtn) {
                     b.background = UITheme.createRoundedDrawable(UITheme.COLOR_PRIMARY, 10f)
@@ -91,6 +94,7 @@ class MainActivity : AppCompatActivity() {
             formComponent.view.visibility = View.VISIBLE
             historyView.visibility = View.GONE
             searchView.visibility = View.GONE
+            settingsView.visibility = View.GONE
         }
 
         // --- Unified Photo/Camera Picker Handler ---
@@ -160,9 +164,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         navLayout.addView(btnForm)
-        navLayout.addView(btnSearch)
-        navLayout.addView(btnHistory)
         navLayout.addView(btnScan)
+        navLayout.addView(btnHistory)
+        navLayout.addView(btnSearch)
+        navLayout.addView(btnSettings)
 
         highlightTab(btnForm) // Default active tab
 
@@ -173,17 +178,28 @@ class MainActivity : AppCompatActivity() {
             formComponent.view.visibility = View.GONE
             historyView.visibility = View.VISIBLE
             searchView.visibility = View.GONE
+            settingsView.visibility = View.GONE
         }
         btnSearch.setOnClickListener {
             highlightTab(btnSearch)
             formComponent.view.visibility = View.GONE
             historyView.visibility = View.GONE
             searchView.visibility = View.VISIBLE
+            settingsView.visibility = View.GONE
+        }
+
+        btnSettings.setOnClickListener {
+            highlightTab(btnSettings)
+            formComponent.view.visibility = View.GONE
+            historyView.visibility = View.GONE
+            searchView.visibility = View.GONE
+            settingsView.visibility = View.VISIBLE
         }
 
         contentContainer.addView(formComponent.view)
         contentContainer.addView(historyView)
         contentContainer.addView(searchView)
+        contentContainer.addView(settingsView)
 
         mainContainer.addView(contentContainer)
         mainContainer.addView(navLayout)
