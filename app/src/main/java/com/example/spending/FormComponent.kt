@@ -3,6 +3,7 @@ package com.example.spending
 import android.content.Context
 import android.graphics.Color
 import android.text.InputType
+import android.view.View
 import android.widget.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,15 +24,15 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
 
     // Default Fallback Suggestions
     private val defaultCategories = listOf("Groceries", "Dining", "Transport", "Bills", "Entertainment", "Other")
-    private val defaultSources = listOf("Credit Card", "Debit Card", "Cash", "Google Pay", "Bank Transfer")
-    private val defaultMerchants = listOf("West Zone Supermarket", "Carrefour", "Lulu Hypermarket")
+    private val defaultSources = listOf("Credit Card", "Cash", "Google Pay", "Bank Transfer")
+    private val defaultMerchants = listOf("West Zone Supermarket", "Carrefour", "Lulu Hypermarket", "Falafel Al Rabiah")
 
     // Autocomplete Fields
-    private val merchantInput = UITheme.createStyledAutoCompleteTextView(context, "Place Name")
-    private val categoryInput = UITheme.createStyledAutoCompleteTextView(context, "e.g., Groceries")
-    private val sourceInput = UITheme.createStyledAutoCompleteTextView(context, "e.g., Credit Card")
+    private val merchantInput = UITheme.createStyledAutoCompleteTextView(context, "Merchant Name (e.g., West Zone)")
+    private val categoryInput = UITheme.createStyledAutoCompleteTextView(context, "Category (e.g., Groceries)")
+    private val sourceInput = UITheme.createStyledAutoCompleteTextView(context, "Paid From (e.g., Credit Card)")
 
-    private val amountInput = UITheme.createStyledEditText(context, "Total Amount", InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL)
+    private val amountInput = UITheme.createStyledEditText(context, "Total Amount (e.g., 40.80)", InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL)
     private val noteInput = UITheme.createStyledEditText(context, "Note (Optional)", InputType.TYPE_CLASS_TEXT)
 
     private val currencies = arrayOf("AED", "USD", "VND")
@@ -117,18 +118,54 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
         formLayout.addView(itemHeaderRow)
         formLayout.addView(itemsContainer)
 
-        // Save Button
-        val saveButton = UITheme.createPrimaryButton(context, "Save Record")
-        saveButton.setOnClickListener { saveToDatabase() }
-        formLayout.addView(saveButton)
+        // Buttons Row (Clear Form + Save)
+        val buttonRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 24, 0, 0)
+        }
+
+        val clearButton = Button(context).apply {
+            text = "Clear"
+            textSize = 15f
+            isAllCaps = false
+            setTextColor(UITheme.COLOR_TEXT_MUTED)
+            background = UITheme.createRoundedDrawable(Color.TRANSPARENT, 12f, UITheme.COLOR_BORDER, 1)
+            setPadding(32, 24, 32, 24)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { setMargins(0, 0, 8, 0) }
+            setOnClickListener { resetForm() }
+        }
+
+        val saveButton = UITheme.createPrimaryButton(context, "Save Record").apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f).apply { setMargins(8, 0, 0, 0) }
+            setOnClickListener { saveToDatabase() }
+        }
+
+        buttonRow.addView(clearButton)
+        buttonRow.addView(saveButton)
+        formLayout.addView(buttonRow)
 
         view.addView(formLayout)
 
-        // Initial loading of Autocomplete options
+        // Initial setup
+        resetForm()
         loadAutocompleteOptions()
     }
 
-    // --- Fetches distinct historical values and merges them with defaults ---
+    // --- Reset Form Fields back to defaults ---
+    fun resetForm() {
+        merchantInput.text.clear()
+        amountInput.text.clear()
+        noteInput.text.clear()
+
+        // Defaults requested: Category -> Groceries, Paid From -> Credit Card
+        categoryInput.setText("Groceries", false)
+        sourceInput.setText("Credit Card", false)
+
+        itemsContainer.removeAllViews()
+        dynamicItemRows.clear()
+        view.scrollTo(0, 0)
+    }
+
     fun loadAutocompleteOptions() {
         scope.launch(Dispatchers.IO) {
             val dbMerchants = dao.getDistinctMerchants()
@@ -147,13 +184,13 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
         }
     }
 
+    // --- Auto-Clear & Fill from New OCR Scan ---
     fun fillFromOcr(data: ReceiptParser.ParsedData) {
+        resetForm() // Wipe out existing inputs first
+
         merchantInput.setText(data.merchantName, false)
         amountInput.setText(if (data.totalAmount > 0f) data.totalAmount.toString() else "")
         noteInput.setText("Scanned via OCR")
-
-        itemsContainer.removeAllViews()
-        dynamicItemRows.clear()
 
         for (item in data.items) {
             addItemRow(item.name, item.price.toString())
@@ -200,8 +237,8 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
     private fun saveToDatabase() {
         val amountText = amountInput.text.toString()
         val merchantText = merchantInput.text.toString().trim()
-        val categoryText = categoryInput.text.toString().trim().ifEmpty { "Other" }
-        val sourceText = sourceInput.text.toString().trim().ifEmpty { "Cash" }
+        val categoryText = categoryInput.text.toString().trim().ifEmpty { "Groceries" }
+        val sourceText = sourceInput.text.toString().trim().ifEmpty { "Credit Card" }
 
         if (amountText.isEmpty() || merchantText.isEmpty()) {
             Toast.makeText(context, "Please enter Merchant and Total Amount", Toast.LENGTH_SHORT).show()
@@ -241,15 +278,8 @@ class FormComponent(val context: Context, val dao: SpendingDao, val scope: Corou
             }
 
             withContext(Dispatchers.Main) {
-                merchantInput.text.clear()
-                amountInput.text.clear()
-                noteInput.text.clear()
-                itemsContainer.removeAllViews()
-                dynamicItemRows.clear()
-
+                resetForm()
                 Toast.makeText(context, "Saved Record & ${itemsToSave.size} Items!", Toast.LENGTH_SHORT).show()
-
-                // Immediately refresh autocomplete lists so newly added values show up next time!
                 loadAutocompleteOptions()
             }
         }
