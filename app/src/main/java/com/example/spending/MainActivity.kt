@@ -1,20 +1,29 @@
 package com.example.spending
 
+import android.app.Activity
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.view.View
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var formComponent: FormComponent
     private var useGeminiForNextScan = false // Stores the user's scanner choice
+    private var tempImageUri: Uri? = null // Temporarily stores the camera photo
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,6 +35,7 @@ class MainActivity : AppCompatActivity() {
         val mainContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(UITheme.COLOR_BACKGROUND)
+            setPadding(0, 140, 0, 0) // Added padding to avoid status bar overlap
         }
 
         val contentContainer = FrameLayout(this).apply {
@@ -83,13 +93,18 @@ class MainActivity : AppCompatActivity() {
             searchView.visibility = View.GONE
         }
 
-        // --- Photo Picker Handler ---
-        val pickMedia = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-            if (uri != null) {
-                // Pass the user's choice to OcrScanner
-                OcrScanner.processImage(this, uri, lifecycleScope, useGeminiForNextScan) { parsedData ->
-                    switchToFormTab()
-                    formComponent.fillFromOcr(parsedData)
+        // --- Unified Photo/Camera Picker Handler ---
+        val pickImageLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                // If data or data.data is null, it means the user took a picture with the Camera
+                val isCamera = result.data == null || result.data?.data == null
+                val selectedUri = if (isCamera) tempImageUri else result.data?.data
+
+                if (selectedUri != null) {
+                    OcrScanner.processImage(this, selectedUri, lifecycleScope, useGeminiForNextScan) { parsedData ->
+                        switchToFormTab()
+                        formComponent.fillFromOcr(parsedData)
+                    }
                 }
             }
         }
@@ -101,11 +116,43 @@ class MainActivity : AppCompatActivity() {
                 val options = arrayOf("Offline Scan (ML Kit)", "Cloud AI Scan (Gemini)")
 
                 AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Select Scanner")
+                    .setTitle("Select Scanner Engine")
                     .setItems(options) { _, which ->
-                        // Index 0 = Offline, Index 1 = Gemini
                         useGeminiForNextScan = (which == 1)
-                        pickMedia.launch("image/*")
+
+                        try {
+                            // Setup temporary URI for the Camera intent
+                            val tmpFile = File.createTempFile("receipt_tmp_", ".jpg", cacheDir).apply {
+                                deleteOnExit()
+                            }
+                            tempImageUri = FileProvider.getUriForFile(
+                                this@MainActivity,
+                                "${applicationContext.packageName}.provider",
+                                tmpFile
+                            )
+
+                            // Intent to pick from gallery
+                            val galleryIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                type = "image/*"
+                            }
+
+                            // Intent to capture from camera with EXPLICIT permissions attached
+                            val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+                                putExtra(MediaStore.EXTRA_OUTPUT, tempImageUri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                                clipData = ClipData.newUri(contentResolver, "photo", tempImageUri)
+                            }
+
+                            // Create a chooser that merges both intents (Camera will appear as an option)
+                            val chooserIntent = Intent.createChooser(galleryIntent, "Select Receipt Image").apply {
+                                putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(cameraIntent))
+                            }
+
+                            pickImageLauncher.launch(chooserIntent)
+
+                        } catch (e: Exception) {
+                            Toast.makeText(this@MainActivity, "Failed to start picker: FileProvider missing?", Toast.LENGTH_LONG).show()
+                        }
                     }
                     .setNegativeButton("Cancel", null)
                     .show()
