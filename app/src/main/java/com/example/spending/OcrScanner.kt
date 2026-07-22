@@ -14,9 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * OcrScanner routes receipt image processing based on internet connectivity.
- * Uses Gemini AI via GeminiScanner when online for maximum accuracy and automatic translation,
- * and falls back to local ML Kit spatial processing when offline.
+ * OcrScanner routes receipt image processing based on user selection.
  */
 object OcrScanner {
 
@@ -24,9 +22,10 @@ object OcrScanner {
         context: Context,
         imageUri: Uri,
         scope: CoroutineScope,
+        useGemini: Boolean,
         onSuccess: (ReceiptParser.ParsedData) -> Unit
     ) {
-        if (NetworkUtils.isOnline(context)) {
+        if (useGemini) {
             // --- ONLINE: Process via Gemini AI ---
             Toast.makeText(context, "Processing via Gemini AI...", Toast.LENGTH_SHORT).show()
 

@@ -1,5 +1,6 @@
 package com.example.spending
 
+import android.app.AlertDialog
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
@@ -13,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 class MainActivity : AppCompatActivity() {
 
     private lateinit var formComponent: FormComponent
+    private var useGeminiForNextScan = false // Stores the user's scanner choice
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,7 +76,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Navigation Switcher Function
         fun switchToFormTab() {
             highlightTab(btnForm)
             formComponent.view.visibility = View.VISIBLE
@@ -85,17 +86,30 @@ class MainActivity : AppCompatActivity() {
         // --- Photo Picker Handler ---
         val pickMedia = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             if (uri != null) {
-                OcrScanner.processImage(this, uri, lifecycleScope) { parsedData ->
-                    // Auto-navigate to Form tab & fill parsed data!
+                // Pass the user's choice to OcrScanner
+                OcrScanner.processImage(this, uri, lifecycleScope, useGeminiForNextScan) { parsedData ->
                     switchToFormTab()
                     formComponent.fillFromOcr(parsedData)
                 }
             }
         }
 
+        // --- Scan Button with Selection Dialog ---
         val btnScan = createNavBtn("Scan").apply {
             setTextColor(UITheme.COLOR_PRIMARY)
-            setOnClickListener { pickMedia.launch("image/*") }
+            setOnClickListener {
+                val options = arrayOf("Offline Scan (ML Kit)", "Cloud AI Scan (Gemini)")
+
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Select Scanner")
+                    .setItems(options) { _, which ->
+                        // Index 0 = Offline, Index 1 = Gemini
+                        useGeminiForNextScan = (which == 1)
+                        pickMedia.launch("image/*")
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
         }
 
         navLayout.addView(btnForm)
