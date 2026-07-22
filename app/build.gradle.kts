@@ -1,3 +1,12 @@
+import java.util.Properties
+
+// Read .env file at the root of the project
+val envProperties = Properties()
+val envFile = rootProject.file(".env")
+if (envFile.exists()) {
+    envProperties.load(envFile.inputStream())
+}
+
 plugins {
     alias(libs.plugins.android.application)
     id("com.google.devtools.ksp")
@@ -19,6 +28,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Expose the API key as a string in BuildConfig
+        val apiKey = envProperties.getProperty("GEMINI_API_KEY") ?: ""
+        buildConfigField("String", "GEMINI_API_KEY", "\"$apiKey\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
@@ -50,4 +66,8 @@ dependencies {
     ksp("androidx.room:room-compiler:$room_version")
 
     implementation("com.google.mlkit:text-recognition:16.0.1")
+
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+    // Change from latin-only to multi-language / script support
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.1") // Or default multi-script recognizer
 }

@@ -85,7 +85,7 @@ class MainActivity : AppCompatActivity() {
         // --- Photo Picker Handler ---
         val pickMedia = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             if (uri != null) {
-                OcrScanner.processImage(this, uri) { parsedData ->
+                OcrScanner.processImage(this, uri, lifecycleScope) { parsedData ->
                     // Auto-navigate to Form tab & fill parsed data!
                     switchToFormTab()
                     formComponent.fillFromOcr(parsedData)
